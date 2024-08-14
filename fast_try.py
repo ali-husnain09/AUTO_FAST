@@ -22,6 +22,9 @@ class Iterations(nValidate, aValidate):
         self.last_row_file = last_row_file
         self.last_row_number = self.load_last_row_number()
         self.driver = self.setup_driver()
+        self.noRecordsFound = (
+            "We could not find any records associated with that address."
+        )
 
     def setup_driver(self):
         chrome_options = Options()
@@ -68,32 +71,52 @@ class Iterations(nValidate, aValidate):
         with open(self.last_row_file, "w") as file:
             file.write(str(last_row_number))
 
+    def read_data(self):  # READ DATA FROM THE PHONENUMBERS TEXT FILE
+        phone_numbers = []
+        with open("phone_numbers.txt", "r") as file:
+            for line in file:
+                phone_numbers.append(line)
+
+        return phone_numbers  # RETURN PHONENUMBERS LIST
+
     def save_phone_number(self, phone_numbers):
         wb = openpyxl.load_workbook(self.file_path)
         sheet = wb.active
+        try:
+            # Assuming the phone number column is column H (column index 8)
+            sheet.cell(row=self.last_row_number + 2, column=8).value = phone_numbers
 
-        # Remove commas from phone numbers and concatenate them into one string
-        # phone_numbers_str = "".join([phone.replace(",", "") for phone in phone_numbers])
+        except ValueError:
+            # Remove commas from phone numbers and concatenate them into one string
+            phone_numbers_str = "".join(
+                [phone.replace(",", "\n") for phone in phone_numbers]
+            )
+            sheet.cell(row=self.last_row_number + 2, column=8).value = phone_numbers_str
 
-        # Assuming the phone number column is column H (column index 8)
-        sheet.cell(row=self.last_row_number + 2, column=8).value = phone_numbers
-
-        wb.save(file_path)
+        wb.save(self.file_path)
 
         # Print the phone numbers in the terminal
         print("Phone Numbers Saved")
 
-    def check_name(self, name):
-        return nValidate.__checkValid__(self, name)
+    def no_index(self, NoRecord):
+        wb = openpyxl.load_workbook(self.file_path)
+        sheet = wb.active
+        # Assuming the phone number column is column H (column index 8)
+        sheet.cell(row=self.last_row_number + 2, column=8).value = "no_Index"
 
-    def check_address(self, address, city, state):
-        return aValidate.__init__(self, address, city, state)
+        wb.save(self.file_path)
+        print(f"NOTE: {NoRecord} ")
+
+    def check_name(self, user_name):
+        return nValidate.__checkValid__(self, user_name)
+
+    def check_address(self, formal_address, city, state):
+        return aValidate.__init__(self, formal_address, city, state)
 
     def search_bests(self):
         self.enteringDetails = True
         while self.enteringDetails:
             user_name, formal_address, city, state, _ = self.get_next_row_data()
-            print(formal_address)
             if self.check_name(user_name) == True:
                 print("Company Found.")
                 self.last_row_number += 1
@@ -102,6 +125,7 @@ class Iterations(nValidate, aValidate):
             else:
                 if self.check_address(formal_address, city, state) == True:
                     print("Address Found.")
+                    self.save_phone_number(self.read_data())
                     print("Phone Numbers Received")
                     self.last_row_number += 1
                     self.save_last_row_number(self.last_row_number)
@@ -131,6 +155,14 @@ class Iterations(nValidate, aValidate):
                                 (By.CLASS_NAME, "larger")
                             )
                         )
+                        # Wait for the search results to load
+                        if self.noRecordsFound in self.driver.page_source:
+                            print("No INDEX")
+                            self.no_index(self.noRecordsFound)
+                            self.back()
+                            self.last_row_number += 1
+                            self.save_last_row_number(self.last_row_number)
+                            continue
 
                         # Extracting names from the search results
                         titles = self.driver.find_elements(By.CLASS_NAME, "larger")
@@ -195,6 +227,7 @@ class Iterations(nValidate, aValidate):
                                     )
                                 )
                                 print(f"Phone numbers: {phone_numbers_element.text}")
+                                self.save_phone_number(phone_numbers_element.text)
                                 with open("phone_numbers.txt", "w") as f:
                                     f.write(phone_numbers_element.text)
                                 break  # end the loop for the next data element
@@ -205,7 +238,6 @@ class Iterations(nValidate, aValidate):
                         if i == len(best_matches) - 1:
                             print("No phone numbers found for all best matches.")
                             break
-                            
 
                     except TimeoutException as e:
                         print(f"Timeout occurred: {e}")
@@ -215,6 +247,7 @@ class Iterations(nValidate, aValidate):
                         print(f"An error occurred: {e}")
                     finally:
                         if not self.get_next_row_data()[0]:
+                            print("NO MORE ROWS TO CHECK EXCEL FILE IS CONCLUDED")
                             break
                         self.last_row_number += 1
                         self.save_last_row_number(self.last_row_number)
