@@ -13,7 +13,7 @@ class name_validations:
             "inc",
         ]
         for index in self.valid_chars:
-            if index in self.name.lower():
+            if index in (self.name.lower()).split(" "):
                 self.valid_name = True
                 return self.valid_name
         else:
