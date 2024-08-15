@@ -13,6 +13,7 @@ import random
 from name_check import name_validations as nValidate
 from address_check import address_validations as aValidate
 import openpyxl
+from colorama import Fore
 
 
 class Iterations(nValidate, aValidate):
@@ -62,10 +63,8 @@ class Iterations(nValidate, aValidate):
         formal_address = sheet.cell(row=self.last_row_number + 2, column=5).value
         city = sheet.cell(row=self.last_row_number + 2, column=6).value
         state = sheet.cell(row=self.last_row_number + 2, column=7).value
-        phone_number = sheet.cell(row=self.last_row_number + 2, column=8).value
-        email_address = sheet.cell(row=self.last_row_number + 2, column=9).value
 
-        return user_name, formal_address, city, state, phone_number
+        return user_name, formal_address, city, state
 
     def save_last_row_number(self, last_row_number):
         with open(self.last_row_file, "w") as file:
@@ -79,61 +78,48 @@ class Iterations(nValidate, aValidate):
 
         return phone_numbers  # RETURN PHONENUMBERS LIST
 
-    def save_phone_number(self, phone_numbers):
+    def save_Value(self, value):
         wb = openpyxl.load_workbook(self.file_path)
         sheet = wb.active
         try:
             # Assuming the phone number column is column H (column index 8)
-            sheet.cell(row=self.last_row_number + 2, column=8).value = phone_numbers
+            sheet.cell(row=self.last_row_number + 2, column=8).value = value
 
         except ValueError:
             # Remove commas from phone numbers and concatenate them into one string
-            phone_numbers_str = "".join(
-                [phone.replace(",", "\n") for phone in phone_numbers]
-            )
-            sheet.cell(row=self.last_row_number + 2, column=8).value = phone_numbers_str
-
-        wb.save(self.file_path)
+            value = "".join([phone.replace(",", "\n") for phone in value])
+            sheet.cell(row=self.last_row_number + 2, column=8).value = value
 
         # Print the phone numbers in the terminal
-        print("Phone Numbers Saved")
-
-    def no_index(self, NoRecord):
-        wb = openpyxl.load_workbook(self.file_path)
-        sheet = wb.active
-        # Assuming the phone number column is column H (column index 8)
-        sheet.cell(row=self.last_row_number + 2, column=8).value = "no_Index"
-
+        print(Fore.GREEN + f"Provided Value Is Saved is {self.last_row_number + 2}")
         wb.save(self.file_path)
-        print(f"NOTE: {NoRecord} ")
 
     def check_name(self, user_name):
         return nValidate.__checkValid__(self, user_name)
 
     def check_address(self, formal_address, city, state):
-        return aValidate.__init__(self, formal_address, city, state)
+        return aValidate.__checkValid__(self, formal_address, city, state)
 
     def search_bests(self):
         self.enteringDetails = True
         while self.enteringDetails:
-            user_name, formal_address, city, state, _ = self.get_next_row_data()
-            if self.check_name(user_name) == True:
-                print("Company Found.")
-                self.last_row_number += 1
-                self.save_last_row_number(self.last_row_number)
-                continue
+            user_name, formal_address, city, state = self.get_next_row_data()
+            if not user_name:
+                print(Fore.BLUE + "No More Rows To Process")
+                break
+            if self.check_name(user_name):
+                print(Fore.YELLOW + "Company Found.")
+                # integrate here the value
+                self.save_Value("Its Company")
             else:
-                if self.check_address(formal_address, city, state) == True:
-                    print("Address Found.")
-                    self.save_phone_number(self.read_data())
-                    print("Phone Numbers Received")
-                    self.last_row_number += 1
-                    self.save_last_row_number(self.last_row_number)
-                    continue
+                if self.check_address(formal_address, city, state):
+                    print(Fore.YELLOW + "Address Matched.")
+                    # phone numbers received to through address
+                    self.save_Value(self.read_data())
+                    print(Fore.BLUE + "Phone Numbers Received")
                 else:
 
                     try:
-                        # Open the website
                         # time.sleep(5)
                         input_element = WebDriverWait(self.driver, 5).until(
                             EC.element_to_be_clickable((By.ID, self.var[0]))
@@ -155,24 +141,26 @@ class Iterations(nValidate, aValidate):
                                 (By.CLASS_NAME, "larger")
                             )
                         )
+
+                        """#?  integrate when its to be needed"""
                         # Wait for the search results to load
-                        if self.noRecordsFound in self.driver.page_source:
-                            print("No INDEX")
-                            self.no_index(self.noRecordsFound)
-                            self.back()
-                            self.last_row_number += 1
-                            self.save_last_row_number(self.last_row_number)
-                            continue
+                        # if self.noRecordsFound in self.driver.page_source:
+                        #     print("No INDEX")
+                        #     self.no_index(self.noRecordsFound)
+                        #     self.back()
+                        #     self.last_row_number += 1
+                        #     self.save_last_row_number(self.last_row_number)
+                        #     continue
 
                         # Extracting names from the search results
                         titles = self.driver.find_elements(By.CLASS_NAME, "larger")
                         output_names = [names.text for names in titles]
 
                         # Check if output_names is available
-                        print(f"Output Names: {output_names}")
+                        print(Fore.WHITE + f"Output Names: {output_names}")
 
                         if not output_names:
-                            print("No output names were found.")
+                            print(Fore.RED + "No output names were found.")
                             return
 
                         # Save the output names to a file
@@ -186,15 +174,18 @@ class Iterations(nValidate, aValidate):
                         for index in output_names:
                             # Print the current comparison
                             print(
-                                f"Comparing '{user_name.lower()}' with '{index.lower()}'"
+                                Fore.WHITE
+                                + f"Comparing '{user_name.lower()}' with '{index.lower()}'"
                             )
                             ratio = fuzz.ratio(user_name.lower(), index.lower())
-                            print(f"Match Ratio: {ratio}")  # Print the calculated ratio
+                            print(
+                                Fore.GREEN + f"Match Ratio: {ratio}"
+                            )  # Print the calculated ratio
                             if ratio >= 40:  # adjust the ratio to 50
                                 best_matches.append((index, ratio))
 
                         # Check if best_matches are available
-                        print(f"Best Matches: {best_matches}")
+                        print(Fore.LIGHTYELLOW_EX + f"Best Matches: {best_matches}")
 
                         # Sort matches by ratio in descending order from highest to lowest
                         best_matches.sort(key=lambda x: x[1], reverse=True)
@@ -204,12 +195,17 @@ class Iterations(nValidate, aValidate):
                             json.dump(best_matches, outfile)
 
                         # Print the best matches
-                        print(f"Best matches found and saved to JSON: {best_matches}")
+                        print(
+                            Fore.RED
+                            + f"Best matches found and saved to JSON: {best_matches}"
+                        )
 
                         # Click on each best match and perform an action
 
                         for i, (name, ratio) in enumerate(best_matches):
-                            print(f"Top {i+1} match: {name}, Score: {ratio}")
+                            print(
+                                Fore.WHITE + f"Top {i+1} match: {name}, Score: {ratio}"
+                            )
                             element = WebDriverWait(self.driver, 10).until(
                                 EC.element_to_be_clickable(
                                     (By.XPATH, f"//*[contains(text(), '{name}')]")
@@ -226,41 +222,47 @@ class Iterations(nValidate, aValidate):
                                         (By.CLASS_NAME, self.var[4])
                                     )
                                 )
-                                print(f"Phone numbers: {phone_numbers_element.text}")
-                                self.save_phone_number(phone_numbers_element.text)
+                                print(Fore.GREEN + f"Phone numbers are found")
+                                self.save_Value(phone_numbers_element.text)
                                 with open("phone_numbers.txt", "w") as f:
                                     f.write(phone_numbers_element.text)
                                 break  # end the loop for the next data element
                             except NoSuchElementException as e:
-                                print(f"Phone numbers not found for: {name}")
+                                print(Fore.RED + f"Phone numbers not found for: {name}")
                                 self.driver.back()  # Go back to search results
-                                continue
-                        if i == len(best_matches) - 1:
-                            print("No phone numbers found for all best matches.")
-                            break
 
-                    except TimeoutException as e:
-                        print(f"Timeout occurred: {e}")
-                    except NoSuchElementException as e:
-                        print(f"Element not found: {e}")
-                    except Exception as e:
-                        print(f"An error occurred: {e}")
-                    finally:
-                        if not self.get_next_row_data()[0]:
-                            print("NO MORE ROWS TO CHECK EXCEL FILE IS CONCLUDED")
+                        if i == len(best_matches) - 1:
+                            print(
+                                Fore.RED
+                                + "No phone numbers found for all best matches."
+                            )
                             break
-                        self.last_row_number += 1
-                        self.save_last_row_number(self.last_row_number)
-                        self.driver.get(
-                            "https://www.fastpeoplesearch.com/"
-                        )  # Go back to search results
-                        continue
+                    # timeout error for each element
+                    except TimeoutException:
+                        print(Fore.RED + f"Timeout occurred")
+                        self.save_Value("Timeout occurred")
+                    # if there are no elements
+                    except NoSuchElementException as e:
+                        print(Fore.RED + f"Element not found {e}")
+                        self.save_Value("NoSuchElement")
+                    # others any errors and warnings
+                    except Exception as e:
+                        print(Fore.RED + f"An error occurred: {e}")
+                        self.save_Value("Erros")
+
+            # Do increment for each iteration
+            self.last_row_number += 1
+            self.save_last_row_number(self.last_row_number)
+            self.driver.get(
+                "https://www.fastpeoplesearch.com/"
+            )  # Go back to search results
+
+        # Finally, Save the file
 
     def run(self):
         self.driver.get("https://www.fastpeoplesearch.com/")
         self.search_bests()
         self.driver.quit()
-
 
 timers = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 variables = [
@@ -270,8 +272,8 @@ variables = [
     '//*[@id="form-search-address"]/div[3]/button[2]',
     "detail-box-phone",
 ]
-file_path = "100.xlsx"
-last_row_file = "last_row_number.txt"
+file_path = "mytest2.xlsx"  # file path for search results
+last_row_file = "last_row_number.txt"  # file path for last row for each iteration
 if __name__ == "__main__":
     iterations = Iterations(file_path, last_row_file, variables)
     iterations.run()
