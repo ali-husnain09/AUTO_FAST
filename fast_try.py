@@ -231,12 +231,12 @@ class Iterations(nValidate, aValidate):
                                 print(Fore.RED + f"Phone numbers not found for: {name}")
                                 self.driver.back()  # Go back to search results
 
-                        if i == len(best_matches) - 1:
-                            print(
-                                Fore.RED
-                                + "No phone numbers found for all best matches."
-                            )
-                            break
+                            if i == len(best_matches) - 1:
+                                print(
+                                    Fore.RED
+                                    + "No phone numbers found for all best matches."
+                                )
+                                break
                     # timeout error for each element
                     except TimeoutException:
                         print(Fore.RED + f"Timeout occurred")
