@@ -1,10 +1,12 @@
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
-from selenium.webdriver.chrome.service import Service as ChromeService
+
+# from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+
+# from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from thefuzz import fuzz
 import json
@@ -14,6 +16,7 @@ from name_check import name_validations as nValidate
 from address_check import address_validations as aValidate
 import openpyxl
 from colorama import Fore
+import undetected_chromedriver as uc
 
 
 class Iterations(nValidate, aValidate):
@@ -29,11 +32,15 @@ class Iterations(nValidate, aValidate):
 
     def setup_driver(self):
         chrome_options = Options()
-        chrome_options.page_load_strategy = "eager"
-        driver = webdriver.Chrome(
-            service=ChromeService(ChromeDriverManager().install()),
-            options=chrome_options,
+        chrome_options.add_argument(
+            "--user-data-dir=C:\\Users\\Kali\\AppData\\Local\\Google\\Chrome\\User Data\\Default"
         )
+        chrome_options.page_load_strategy = "eager"
+        # driver = webdriver.Chrome(
+        #     service=ChromeService(ChromeDriverManager().install()),
+        #     options=chrome_options,
+        # )
+        driver = uc.Chrome(options=chrome_options)
         return driver
 
     def sleeper(self):
@@ -70,6 +77,14 @@ class Iterations(nValidate, aValidate):
         with open(self.last_row_file, "w") as file:
             file.write(str(last_row_number))
 
+    def read_email_DATA(self):  # READ DATA FROM THE EMAIL TEXT FILE
+        emails = []
+        with open("emails.txt", "r") as file:
+            for line in file:
+                emails.append(line)
+
+        return emails  # RETURN EMAIL LIST
+
     def read_data(self):  # READ DATA FROM THE PHONENUMBERS TEXT FILE
         phone_numbers = []
         with open("phone_numbers.txt", "r") as file:
@@ -94,6 +109,22 @@ class Iterations(nValidate, aValidate):
         print(Fore.GREEN + f"Provided Value Is Saved is {self.last_row_number + 2}")
         wb.save(self.file_path)
 
+    def save_EMAIL(self, email_val):
+        wb = openpyxl.load_workbook(self.file_path)
+        sheet = wb.active
+        try:
+            # Assuming the emails column is column I (column index 9)
+            sheet.cell(row=self.last_row_number + 2, column=9).value = email_val
+
+        except ValueError:
+            # Remove commas from emails list and concatenate them into one string
+            email_val_str = "".join([email.replace(",", "\n") for email in email_val])
+            sheet.cell(row=self.last_row_number + 2, column=9).value = email_val_str
+
+        # Print the emails_print in the terminal
+        print(Fore.GREEN + f"Email Saved is {self.last_row_number + 2}")
+        wb.save(self.file_path)
+
     def check_name(self, user_name):
         return nValidate.__checkValid__(self, user_name)
 
@@ -105,7 +136,7 @@ class Iterations(nValidate, aValidate):
         while self.enteringDetails:
             user_name, formal_address, city, state = self.get_next_row_data()
             if not user_name:
-                print(Fore.BLUE + "No More Rows To Process")
+                print(Fore.LIGHTYELLOW_EX + "No More Rows To Process")
                 break
             if self.check_name(user_name):
                 print(Fore.YELLOW + "Company Found.")
@@ -116,33 +147,41 @@ class Iterations(nValidate, aValidate):
                     print(Fore.YELLOW + "Address Matched.")
                     # phone numbers received to through address
                     self.save_Value(self.read_data())
+                    self.save_EMAIL(self.read_email_DATA())
                     print(Fore.BLUE + "Phone Numbers Received")
+                    print(Fore.BLUE + "Emails Received")
                 else:
 
                     try:
-                        # time.sleep(5)
+                        time.sleep(3)
                         input_element = WebDriverWait(self.driver, 5).until(
                             EC.element_to_be_clickable((By.ID, self.var[0]))
                         )
                         input_element.click()
                         address_bar = self.driver.find_element(By.ID, self.var[1])
-                        address_bar.send_keys(str(formal_address))
+                        # address_bar.send_keys(str(formal_address))
+                        for i in str(formal_address):
+                            address_bar.send_keys(i)
                         # self.sleeper()
-
+                        time.sleep(0.4)
                         city_bar = self.driver.find_element(By.ID, self.var[2])
-                        city_bar.send_keys(str(city + "," + state))
-                        # self.sleeper()
+                        # city_bar.send_keys(str(city + "," + state))
+                        for i in str(city + ", " + state):
+                            city_bar.send_keys(i)
 
+                        # self.sleeper()
+                        time.sleep(0.4)
                         self.driver.find_element(By.XPATH, self.var[3]).click()
 
                         # Wait for search results to load
-                        WebDriverWait(self.driver, 50).until(
+                        time.sleep(3)
+                        WebDriverWait(self.driver, 20).until(
                             EC.presence_of_all_elements_located(
                                 (By.CLASS_NAME, "larger")
                             )
                         )
 
-                        """#?  integrate when its to be needed"""
+                        # ?  integrate when its to be needed
                         # Wait for the search results to load
                         # if self.noRecordsFound in self.driver.page_source:
                         #     print("No INDEX")
@@ -201,33 +240,48 @@ class Iterations(nValidate, aValidate):
                         )
 
                         # Click on each best match and perform an action
-
+                        time.sleep(0.5)
                         for i, (name, ratio) in enumerate(best_matches):
                             print(
                                 Fore.WHITE + f"Top {i+1} match: {name}, Score: {ratio}"
                             )
-                            element = WebDriverWait(self.driver, 10).until(
+                            element = WebDriverWait(self.driver, 20).until(
                                 EC.element_to_be_clickable(
                                     (By.XPATH, f"//*[contains(text(), '{name}')]")
                                 )
                             )
                             element.click()
-                            self.driver.implicitly_wait(10)  # Wait for the page to load
+                            # self.driver.implicitly_wait(20)  # Wait for the page to load
+                            time.sleep(0.5)
                             try:
                                 # Look for the element containing the phone numbers
                                 phone_numbers_element = WebDriverWait(
-                                    self.driver, 10
+                                    self.driver, 5
                                 ).until(
                                     EC.presence_of_element_located(
                                         (By.CLASS_NAME, self.var[4])
                                     )
                                 )
-                                print(Fore.GREEN + f"Phone numbers are found")
+                                print(Fore.BLUE + f"Phone numbers are found")
                                 self.save_Value(phone_numbers_element.text)
                                 with open("phone_numbers.txt", "w") as f:
                                     f.write(phone_numbers_element.text)
+                                try:
+                                    email_element = WebDriverWait(self.driver, 5).until(
+                                        EC.presence_of_element_located(
+                                            (By.XPATH, self.var[5])
+                                        )
+                                    )
+                                    print(Fore.BLUE + f"Emails are found")
+                                    self.save_EMAIL(email_element.text)
+                                    with open("emails.txt", "w") as f:
+                                        f.write(email_element.text)
+                                except:
+                                    print(Fore.RED + f"Email not found for: {name}")
                                 break  # end the loop for the next data element
-                            except NoSuchElementException as e:
+
+                            # //changes here to make a backup
+                            except TimeoutException as e:
                                 print(Fore.RED + f"Phone numbers not found for: {name}")
                                 self.driver.back()  # Go back to search results
 
@@ -264,6 +318,7 @@ class Iterations(nValidate, aValidate):
         self.search_bests()
         self.driver.quit()
 
+
 timers = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 variables = [
     "search-nav-link-address",
@@ -271,9 +326,11 @@ variables = [
     "search-address-2",
     '//*[@id="form-search-address"]/div[3]/button[2]',
     "detail-box-phone",
+    '//*[@id="email_section"]/div/div',
 ]
 file_path = "mytest2.xlsx"  # file path for search results
 last_row_file = "last_row_number.txt"  # file path for last row for each iteration
 if __name__ == "__main__":
     iterations = Iterations(file_path, last_row_file, variables)
     iterations.run()
+    
