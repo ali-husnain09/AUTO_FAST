@@ -17,7 +17,7 @@ from address_check import address_validations as aValidate
 import openpyxl
 from colorama import Fore
 import undetected_chromedriver as uc
-
+import os
 
 class Iterations(nValidate, aValidate):
     def __init__(self, file_path, last_row_file, variables):
@@ -145,15 +145,28 @@ class Iterations(nValidate, aValidate):
             else:
                 if self.check_address(formal_address, city, state):
                     print(Fore.YELLOW + "Address Matched.")
-                    # phone numbers received to through address
-                    self.save_Value(self.read_data())
-                    self.save_EMAIL(self.read_email_DATA())
-                    print(Fore.BLUE + "Phone Numbers Received")
-                    print(Fore.BLUE + "Emails Received")
+                    try:
+                        # phone numbers received to through address
+                        self.save_Value(self.read_data())
+                        self.save_EMAIL(self.read_email_DATA())
+                        print(Fore.BLUE + "Phone Numbers Received")
+                        print(Fore.BLUE + "Emails Received")
+                    except FileNotFoundError:
+                        print(Back.LIGHTRED_EX + Back.BLACK + "DETAILS ARE EMPTY")
+                        print(
+                            Fore.LIGHTYELLOW_EX
+                            + "\n============================================================"
+                        )
+                    except:
+                        print(Back.LIGHTRED_EX + Back.BLACK + "DETAILS ARE EMPTY")
+                        print(
+                            Fore.LIGHTYELLOW_EX
+                            + "\n============================================================"
+                        )
                 else:
 
                     try:
-                        time.sleep(3)
+                        time.sleep(2)
                         input_element = WebDriverWait(self.driver, 5).until(
                             EC.element_to_be_clickable((By.ID, self.var[0]))
                         )
@@ -174,22 +187,12 @@ class Iterations(nValidate, aValidate):
                         self.driver.find_element(By.XPATH, self.var[3]).click()
 
                         # Wait for search results to load
-                        time.sleep(3)
+                        time.sleep(2)
                         WebDriverWait(self.driver, 20).until(
                             EC.presence_of_all_elements_located(
                                 (By.CLASS_NAME, "larger")
                             )
                         )
-
-                        # ?  integrate when its to be needed
-                        # Wait for the search results to load
-                        # if self.noRecordsFound in self.driver.page_source:
-                        #     print("No INDEX")
-                        #     self.no_index(self.noRecordsFound)
-                        #     self.back()
-                        #     self.last_row_number += 1
-                        #     self.save_last_row_number(self.last_row_number)
-                        #     continue
 
                         # Extracting names from the search results
                         titles = self.driver.find_elements(By.CLASS_NAME, "larger")
@@ -199,9 +202,16 @@ class Iterations(nValidate, aValidate):
                         print(Fore.WHITE + f"Output Names: {output_names}")
 
                         if not output_names:
-                            print(Fore.RED + "No output names were found.")
-                            return
-
+                            print(
+                                Back.LIGHTRED_EX
+                                + Fore.BLACK
+                                + "\nNO SEARCH RESULTS ARE AVAILABLE"
+                            )
+                            if os.path.exists("phone_numbers.txt"):
+                                os.remove("phone_numbers.txt")
+                            if os.path.exists("emails.txt"):
+                                os.remove("emails.txt")
+                          
                         # Save the output names to a file
                         with open("output_names.txt", "w") as output:
                             for name in output_names:
@@ -256,7 +266,7 @@ class Iterations(nValidate, aValidate):
                             try:
                                 # Look for the element containing the phone numbers
                                 phone_numbers_element = WebDriverWait(
-                                    self.driver, 5
+                                    self.driver, 3
                                 ).until(
                                     EC.presence_of_element_located(
                                         (By.CLASS_NAME, self.var[4])
@@ -267,7 +277,7 @@ class Iterations(nValidate, aValidate):
                                 with open("phone_numbers.txt", "w") as f:
                                     f.write(phone_numbers_element.text)
                                 try:
-                                    email_element = WebDriverWait(self.driver, 5).until(
+                                    email_element = WebDriverWait(self.driver, 2).until(
                                         EC.presence_of_element_located(
                                             (By.XPATH, self.var[5])
                                         )
